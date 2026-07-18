@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Verse — Scroll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#f4efe4;
+    --ink-dim:rgba(244,239,228,0.62);
+    --ink-faint:rgba(244,239,228,0.32);
+    --verse-shadow:0 1px 24px rgba(0,0,0,0.25);
+    --rail-bg:rgba(0,0,0,0.18);
+    --rail-bg-active:rgba(244,239,228,0.14);
+    --transition-fast:180ms cubic-bezier(.4,0,.2,1);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:#0c0c0c;
+    font-family:'Spectral',Georgia,serif;
+    overscroll-behavior:none;
+  }
+  #feed{
+    height:100vh;
+    height:100dvh;
+    width:100%;
+    overflow-y:scroll;
+    scroll-snap-type:y mandatory;
+    scroll-behavior:smooth;
+  }
+  #feed::-webkit-scrollbar{display:none;}
+  #feed{scrollbar-width:none;}
+
+  .card{
+    position:relative;
+    height:100vh;
+    height:100dvh;
+    width:100%;
+    scroll-snap-align:start;
+    scroll-snap-stop:always;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 clamp(20px,7vw,72px);
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(ellipse 120% 80% at 50% -10%, rgba(255,255,255,0.10), transparent 55%),
+      radial-gradient(ellipse 90% 70% at 85% 110%, rgba(0,0,0,0.30), transparent 60%);
+    pointer-events:none;
+  }
+  .card::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    opacity:0.06;
+    pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .verse-wrap{
+    position:relative;
+    z-index:2;
+    max-width:640px;
+    width:100%;
+    text-align:center;
+  }
+  .emoji-badge{
+    font-size:34px;
+    line-height:1;
+    margin-bottom:16px;
+    opacity:0;
+    transform:translateY(6px) scale(0.85);
+    animation:riseIn 700ms ease forwards 40ms;
+    filter:drop-shadow(0 2px 10px rgba(0,0,0,0.25));
+  }
+  .mark{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:22px;
+    opacity:0;
+    transform:translateY(6px);
+    animation:riseIn 700ms ease forwards 120ms;
+  }
+  .verse-text{
+    font-weight:400;
+    font-style:italic;
+    font-size:clamp(22px,4.6vw,34px);
+    line-height:1.42;
+    color:var(--ink);
+    text-shadow:var(--verse-shadow);
+    opacity:0;
+    transform:translateY(10px);
+    animation:riseIn 750ms ease forwards 200ms;
+  }
+  .verse-text .drop{
+    font-size:1.5em;
+    font-style:normal;
+    font-weight:600;
+    line-height:0;
+    vertical-align:-0.13em;
+  }
+  .ref{
+    margin-top:28px;
+    opacity:0;
+    transform:translateY(6px);
+    animation:riseIn 700ms ease forwards 340ms;
+  }
+  .ref-line{
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+  }
+  .ref-rule{
+    width:28px;height:1px;
+    background:var(--ink-faint);
+  }
+  .ref-text{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:500;
+    font-size:13px;
+    letter-spacing:0.06em;
+    color:var(--ink-dim);
+  }
+  @keyframes riseIn{to{opacity:1;transform:translateY(0);}}
+
+  /* right action rail */
+  .rail{
+    position:fixed;
+    right:14px;
+    bottom:max(28px, env(safe-area-inset-bottom));
+    z-index:10;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:18px;
+  }
+  .rail button{
+    -webkit-tap-highlight-color:transparent;
+    width:46px;height:46px;
+    border-radius:50%;
+    border:1px solid rgba(244,239,228,0.18);
+    background:var(--rail-bg);
+    backdrop-filter:blur(6px);
+    color:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    transition:transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  }
+  .rail button svg{width:19px;height:19px;}
+  .rail button:active{transform:scale(0.88);}
+  .rail button:disabled{opacity:0.5;cursor:default;}
+  .rail .toast{
+    position:absolute;
+    right:56px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.05em;
+    color:var(--ink);
+    background:rgba(0,0,0,0.55);
+    padding:6px 10px;
+    border-radius:5px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 220ms ease, transform 220ms ease;
+    transform:translateX(6px);
+  }
+  .rail .toast.show{opacity:1;transform:translateX(0);}
+
+  /* top progress hint */
+  .top-hint{
+    position:fixed;
+    top:max(18px, env(safe-area-inset-top));
+    left:0;right:0;
+    z-index:10;
+    display:flex;
+    justify-content:center;
+    pointer-events:none;
+  }
+  .top-hint span{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:rgba(244,239,228,0.55);
+    background:rgba(0,0,0,0.28);
+    padding:6px 14px;
+    border-radius:20px;
+    backdrop-filter:blur(4px);
+  }
+
+  /* first-run swipe cue */
+  .cue{
+    position:fixed;
+    left:50%;
+    bottom:max(30px, env(safe-area-inset-bottom));
+    transform:translateX(-50%);
+    z-index:10;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    color:rgba(244,239,228,0.55);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    animation:cueFloat 1.6s ease-in-out infinite, cueFade 400ms ease 3.4s forwards;
+    pointer-events:none;
+  }
+  .cue svg{width:16px;height:16px;opacity:0.8;}
+  @keyframes cueFloat{0%,100%{transform:translate(-50%,0);}50%{transform:translate(-50%,-8px);}}
+  @keyframes cueFade{to{opacity:0;visibility:hidden;}}
+
+  @media (prefers-reduced-motion:reduce){
+    .emoji-badge,.mark,.verse-text,.ref{animation:none;opacity:1;transform:none;}
+    .cue{animation:none;display:none;}
+  }
+
+  /* context panel */
+  .ctx-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:20;
+    background:rgba(0,0,0,0.55);
+    backdrop-filter:blur(3px);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 260ms ease;
+  }
+  .ctx-backdrop.open{opacity:1;pointer-events:auto;}
+
+  .ctx-panel{
+    position:fixed;
+    left:0;right:0;bottom:0;
+    z-index:21;
+    height:min(82vh, 780px);
+    background:#141110;
+    border-top:1px solid rgba(244,239,228,0.12);
+    border-radius:18px 18px 0 0;
+    box-shadow:0 -20px 60px rgba(0,0,0,0.5);
+    display:flex;
+    flex-direction:column;
+    transform:translateY(100%);
+    transition:transform 320ms cubic-bezier(.32,.72,0,1);
+  }
+  .ctx-backdrop.open .ctx-panel{transform:translateY(0);}
+
+  .ctx-handle{
+    width:36px;height:4px;
+    background:rgba(244,239,228,0.25);
+    border-radius:3px;
+    margin:10px auto 4px;
+    flex:0 0 auto;
+  }
+  .ctx-header{
+    flex:0 0 auto;
+    padding:14px 22px 16px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:1px solid rgba(244,239,228,0.08);
+  }
+  .ctx-title{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink);
+  }
+  .ctx-close{
+    -webkit-tap-highlight-color:transparent;
+    width:32px;height:32px;
+    border-radius:50%;
+    border:1px solid rgba(244,239,228,0.18);
+    background:rgba(244,239,228,0.06);
+    color:var(--ink-dim);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    flex:0 0 auto;
+  }
+  .ctx-close svg{width:14px;height:14px;}
+  .ctx-body{
+    flex:1 1 auto;
+    overflow-y:auto;
+    padding:8px 24px 40px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .ctx-verse{
+    display:flex;
+    gap:14px;
+    padding:11px 0;
+    border-bottom:1px solid rgba(244,239,228,0.05);
+    scroll-margin-top:18px;
+  }
+  .ctx-num{
+    flex:0 0 auto;
+    width:24px;
+    padding-top:2px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    text-align:right;
+  }
+  .ctx-txt{
+    font-family:'Spectral',Georgia,serif;
+    font-size:16px;
+    line-height:1.6;
+    color:var(--ink-dim);
+  }
+  .ctx-verse.active{
+    background:rgba(232,166,114,0.10);
+    border-radius:8px;
+    margin:0 -12px;
+    padding:11px 12px;
+  }
+  .ctx-verse.active .ctx-num{color:#e8a672;font-weight:500;}
+  .ctx-verse.active .ctx-txt{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<div class="top-hint"><span id="counter">verse 1</span></div>
+<div id="feed"></div>
+
+<div class="rail">
+  <div style="position:relative;">
+    <button id="shareBtn" title="Share" aria-label="Share this verse as an image">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5 15.4 6.5M8.6 13.5l6.8 4"/></svg>
+    </button>
+    <div class="toast" id="shareToast">Shared</div>
+  </div>
+  <div style="position:relative;">
+    <button id="copyBtn" title="Copy" aria-label="Copy verse text">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+    <div class="toast" id="copyToast">Copied</div>
+  </div>
+  <div style="position:relative;">
+    <button id="ctxBtn" title="View context" aria-label="View chapter context">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    </button>
+  </div>
+  <button id="nextBtn" title="Next verse" aria-label="Next verse">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  </button>
+</div>
+
+<div class="ctx-backdrop" id="ctxBackdrop">
+  <div class="ctx-panel" id="ctxPanel" role="dialog" aria-modal="true" aria-labelledby="ctxTitle">
+    <div class="ctx-handle"></div>
+    <div class="ctx-header">
+      <span class="ctx-title" id="ctxTitle">Chapter</span>
+      <button class="ctx-close" id="ctxClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="ctx-body" id="ctxBody"></div>
+  </div>
+</div>
+
+<div class="cue" id="cue">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  swipe
+</div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  // User-curated palette. Each card gets a diagonal gradient from this base
+  // color to an automatically-darkened companion shade of the same hue, so
+  // every combination stays coherent instead of clashing random pairs.
+  var BRAND_COLORS = [
+    '#F4EAE1','#F3CFC6','#C1DBE3','#E2ECE9',
+    '#FF6B6B','#FEB236','#4ABDAC','#FC4A1A',
+    '#1A2F3B','#2C5E43','#4B0082','#581845',
+    '#D4A574','#A3B18A','#9A7B56','#E6CCB2',
+    '#845EC2','#FF9671','#00C9A7','#34495E'
+  ];
+
+  function hexToRgb(hex){
+    var n = parseInt(hex.slice(1), 16);
+    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
+  function rgbToHex(r,g,b){
+    return '#' + [r,g,b].map(function(v){
+      return Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0');
+    }).join('');
+  }
+  function darken(hex, factor){
+    var c = hexToRgb(hex);
+    return rgbToHex(c.r*factor, c.g*factor, c.b*factor);
+  }
+  function relativeLuminance(hex){
+    var c = hexToRgb(hex);
+    return (0.2126*c.r + 0.7152*c.g + 0.0722*c.b) / 255;
+  }
+
+  var feed = document.getElementById('feed');
+  var counter = document.getElementById('counter');
+  var cardSeq = 0;
+  var total = BIBLE_VERSES.length;
+  var lastColorIdx = -1;
+
+  function pickPalette(){
+    var i;
+    do{ i = Math.floor(Math.random()*BRAND_COLORS.length); }while(i===lastColorIdx && BRAND_COLORS.length>1);
+    lastColorIdx = i;
+    var base = BRAND_COLORS[i];
+    var companion = darken(base, 0.5);
+    return [base, companion];
+  }
+
+  function randomVerse(){
+    return BIBLE_VERSES[Math.floor(Math.random()*total)];
+  }
+
+  function formatText(text){
+    // strip translators' bracketed italics markers but keep words, drop stray artifacts
+    return text.replace(/\[|\]/g,'');
+  }
+
+  // Keyword -> emoji table. Order matters: concrete/vivid nouns are checked
+  // before broad, abstract terms, so a verse mentioning both "sheep" and
+  // "love" surfaces the more specific, visual symbol.
+  var EMOJI_RULES = [
+    [/\b(shepherd|sheep|flock|lamb|lambs|ewe)\b/i, '🐑'],
+    [/\b(fish|fishes|fishermen|net|nets)\b/i, '🐟'],
+    [/\b(bread|manna|loaves|loaf)\b/i, '🍞'],
+    [/\b(wine|vineyard|grapes?|winepress)\b/i, '🍇'],
+    [/\b(olive|olives|olive[- ]?tree)\b/i, '🫒'],
+    [/\b(fig|figs|fig[- ]?tree)\b/i, '🌿'],
+    [/\b(wheat|corn|grain|harvest|reap|sow|sower|sown)\b/i, '🌾'],
+    [/\b(dove|doves)\b/i, '🕊️'],
+    [/\b(eagle|eagles)\b/i, '🦅'],
+    [/\b(lion|lions)\b/i, '🦁'],
+    [/\b(wolf|wolves)\b/i, '🐺'],
+    [/\b(serpent|serpents|snake)\b/i, '🐍'],
+    [/\b(dragon|dragons)\b/i, '🐉'],
+    [/\b(ox|oxen|bull|bullock|calf|calves)\b/i, '🐂'],
+    [/\b(camel|camels)\b/i, '🐫'],
+    [/\b(horse|horses|chariot|chariots)\b/i, '🐴'],
+    [/\b(locust|locusts)\b/i, '🦗'],
+    [/\b(bee|bees|honey)\b/i, '🍯'],
+    [/\b(rainbow)\b/i, '🌈'],
+    [/\b(star|stars)\b/i, '⭐'],
+    [/\b(sun)\b/i, '☀️'],
+    [/\b(moon)\b/i, '🌙'],
+    [/\b(rain|rained|dew)\b/i, '🌧️'],
+    [/\b(storm|whirlwind|tempest)\b/i, '🌬️'],
+    [/\b(thunder|lightning)\b/i, '⚡'],
+    [/\b(cloud|clouds)\b/i, '☁️'],
+    [/\b(fire|flame|flames|furnace|burning|burnt)\b/i, '🔥'],
+    [/\b(water|waters|river|rivers|sea|seas|flood|fountain|well|wells)\b/i, '🌊'],
+    [/\b(ship|ships|boat|sail|sailing)\b/i, '⛵'],
+    [/\b(mountain|mountains|hill|hills)\b/i, '⛰️'],
+    [/\b(wilderness|desert)\b/i, '🏜️'],
+    [/\b(garden|eden)\b/i, '🌷'],
+    [/\b(tree|trees|forest)\b/i, '🌳'],
+    [/\b(rock|rocks|stone|stones)\b/i, '🪨'],
+    [/\b(gold|silver|treasure|riches)\b/i, '💰'],
+    [/\b(crown|crowns|scepter|sceptre|throne)\b/i, '👑'],
+    [/\b(king|kings|kingdom|kingdoms)\b/i, '👑'],
+    [/\b(sword|swords|spear|shield|armour|armor|battle|war)\b/i, '⚔️'],
+    [/\b(angel|angels)\b/i, '👼'],
+    [/\b(temple|altar|sanctuary)\b/i, '🛕'],
+    [/\b(priest|priests|levite|levites)\b/i, '📿'],
+    [/\b(law|commandment|commandments|tablet|tablets)\b/i, '📜'],
+    [/\b(book|scroll|written|write|record)\b/i, '📖'],
+    [/\b(gate|gates|door|doors)\b/i, '🚪'],
+    [/\b(wall|walls|city|cities)\b/i, '🏙️'],
+    [/\b(bride|bridegroom|marriage|married|marry)\b/i, '💍'],
+    [/\b(child|children|son|sons|daughter|daughters|babe|infant)\b/i, '👶'],
+    [/\b(father|forefathers)\b/i, '👨'],
+    [/\b(mother|mothers)\b/i, '👩'],
+    [/\b(brother|brethren|sister|sisters)\b/i, '🧑\u200d🤝\u200d🧑'],
+    [/\b(blood)\b/i, '🩸'],
+    [/\b(heal|healed|healing|sick|disease|leprosy|plague)\b/i, '🩹'],
+    [/\b(death|die|died|dead|dieth|slain|kill|killed)\b/i, '💀'],
+    [/\b(resurrection|risen|rose again|raised)\b/i, '✝️'],
+    [/\b(cross|crucify|crucified)\b/i, '✝️'],
+    [/\b(tears|weep|weeping|wept|mourn|mourning)\b/i, '😢'],
+    [/\b(joy|rejoice|glad|gladness|laughter|laugh)\b/i, '😊'],
+    [/\b(sing|song|songs|music|psalm|trumpet|harp|timbrel)\b/i, '🎵'],
+    [/\b(pray|prayer|prayeth|supplication)\b/i, '🙏'],
+    [/\b(bless|blessed|blessing|blessings)\b/i, '🙌'],
+    [/\b(curse|cursed)\b/i, '⚡'],
+    [/\b(sin|sinner|sinned|iniquity|transgress)\b/i, '⚠️'],
+    [/\b(forgive|forgiveness|pardon)\b/i, '🕊️'],
+    [/\b(mercy|merciful|compassion)\b/i, '❤️'],
+    [/\b(love|loveth|beloved)\b/i, '❤️'],
+    [/\b(hate|hatred|enemy|enemies)\b/i, '💢'],
+    [/\b(fear|afraid|trembling)\b/i, '😨'],
+    [/\b(faith|believe|believeth)\b/i, '🕯️'],
+    [/\b(hope)\b/i, '🌅'],
+    [/\b(wisdom|wise|understanding)\b/i, '🦉'],
+    [/\b(gift|gifts|offering|offerings|sacrifice)\b/i, '🎁'],
+    [/\b(famine|hunger|hungry)\b/i, '🍽️'],
+    [/\b(feast|supper|banquet)\b/i, '🍽️'],
+    [/\b(spirit|holy ghost|soul)\b/i, '🕊️'],
+    [/\b(peace)\b/i, '🕊️'],
+    [/\b(judge|judgment|judgeth)\b/i, '⚖️'],
+    [/\b(nations|gentiles|people)\b/i, '🌍'],
+    [/\b(earth|world)\b/i, '🌍'],
+    [/\b(heaven|heavens)\b/i, '☁️'],
+    [/\b(light|lamp|candle|shine|shineth)\b/i, '💡'],
+    [/\b(darkness|dark)\b/i, '🌑'],
+    [/\b(life|liveth|living|alive)\b/i, '🌱'],
+    [/\b(way|path|road|journey|walk|walked)\b/i, '🛤️']
+  ];
+  var EMOJI_DEFAULT = '✨';
+
+  function pickEmoji(text){
+    for (var i=0;i<EMOJI_RULES.length;i++){
+      if (EMOJI_RULES[i][0].test(text)) return EMOJI_RULES[i][1];
+    }
+    return EMOJI_DEFAULT;
+  }
+
+  function buildCard(entry){
+    var book = entry[0], chapter = entry[1], verse = entry[2], text = formatText(entry[3]);
+    var colors = pickPalette();
+    var emoji = pickEmoji(text);
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.style.background = 'linear-gradient(165deg,' + colors[0] + ',' + colors[1] + ')';
+
+    // pick readable ink color for this specific background
+    var avgHex = rgbToHex(
+      (hexToRgb(colors[0]).r + hexToRgb(colors[1]).r)/2,
+      (hexToRgb(colors[0]).g + hexToRgb(colors[1]).g)/2,
+      (hexToRgb(colors[0]).b + hexToRgb(colors[1]).b)/2
+    );
+    var isLight = relativeLuminance(avgHex) > 0.55;
+    if (isLight){
+      card.style.setProperty('--ink', '#2a2118');
+      card.style.setProperty('--ink-dim', 'rgba(42,33,24,0.68)');
+      card.style.setProperty('--ink-faint', 'rgba(42,33,24,0.38)');
+      card.style.setProperty('--verse-shadow', '0 1px 18px rgba(255,255,255,0.35)');
+    } else {
+      card.style.setProperty('--ink', '#f4efe4');
+      card.style.setProperty('--ink-dim', 'rgba(244,239,228,0.62)');
+      card.style.setProperty('--ink-faint', 'rgba(244,239,228,0.32)');
+      card.style.setProperty('--verse-shadow', '0 1px 24px rgba(0,0,0,0.25)');
+    }
+
+    var wrap = document.createElement('div');
+    wrap.className = 'verse-wrap';
+
+    var badge = document.createElement('div');
+    badge.className = 'emoji-badge';
+    badge.textContent = emoji;
+
+    var mark = document.createElement('div');
+    mark.className = 'mark';
+    cardSeq++;
+    mark.textContent = 'Scripture · ' + String(cardSeq).padStart(3,'0');
+
+    var p = document.createElement('div');
+    p.className = 'verse-text';
+    var first = text.charAt(0);
+    var rest = text.slice(1);
+    p.innerHTML = '<span class="drop">“' + first + '</span>' + rest + '”';
+
+    var ref = document.createElement('div');
+    ref.className = 'ref';
+    ref.innerHTML = '<span class="ref-line"><span class="ref-rule"></span>' +
+      '<span class="ref-text">' + book + ' ' + chapter + ':' + verse + '</span>' +
+      '<span class="ref-rule"></span></span>';
+
+    wrap.appendChild(badge);
+    wrap.appendChild(mark);
+    wrap.appendChild(p);
+    wrap.appendChild(ref);
+    card.appendChild(wrap);
+    card.dataset.ref = book + ' ' + chapter + ':' + verse;
+    card.dataset.text = text;
+    card.dataset.book = book;
+    card.dataset.chapter = chapter;
+    card.dataset.verse = verse;
+    card.dataset.seq = cardSeq;
+    card.dataset.emoji = emoji;
+    card.dataset.colorA = colors[0];
+    card.dataset.colorB = colors[1];
+
+    return card;
+  }
+
+  function appendCard(){
+    var card = buildCard(randomVerse());
+    feed.appendChild(card);
+    return card;
+  }
+
+  // initial stack
+  for (var i=0;i<3;i++) appendCard();
+
+  // infinite feed: when nearing bottom, append more
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting){
+        counter.textContent = 'verse ' + entry.target.dataset.seq;
+        var idx = Array.prototype.indexOf.call(feed.children, entry.target);
+        // if within 2 of the end, load more
+        if (idx >= feed.children.length - 2){
+          appendCard();
+          io.observe(feed.lastElementChild);
+        }
+      }
+    });
+  }, {root:feed, threshold:0.6});
+
+  Array.prototype.forEach.call(feed.children, function(c){ io.observe(c); });
+
+  // re-observe newly appended cards
+  var origAppend = appendCard;
+  appendCard = function(){
+    var c = origAppend();
+    io.observe(c);
+    return c;
+  };
+
+  // next button -> smooth scroll to next card
+  document.getElementById('nextBtn').addEventListener('click', function(){
+    var current = getCurrentCard();
+    var next = current ? current.nextElementSibling : feed.firstElementChild;
+    if (!next){ next = appendCard(); }
+    next.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  function getCurrentCard(){
+    var top = feed.scrollTop;
+    var best = null, bestDist = Infinity;
+    Array.prototype.forEach.call(feed.children, function(c){
+      var d = Math.abs(c.offsetTop - top);
+      if (d < bestDist){ bestDist = d; best = c; }
+    });
+    return best;
+  }
+
+  // copy verse
+  var copyBtn = document.getElementById('copyBtn');
+  var copyToast = document.getElementById('copyToast');
+  copyBtn.addEventListener('click', function(){
+    var current = getCurrentCard();
+    if (!current) return;
+    var full = '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (KJV)';
+    function flash(){
+      copyToast.classList.add('show');
+      setTimeout(function(){ copyToast.classList.remove('show'); }, 1200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(full).then(flash).catch(flash);
+    } else {
+      flash();
+    }
+  });
+
+  // ----- share as image -----
+  function wrapCanvasText(ctx, text, maxWidth){
+    var words = text.split(' ');
+    var lines = [];
+    var line = '';
+    for (var i=0;i<words.length;i++){
+      var test = line ? line + ' ' + words[i] : words[i];
+      if (ctx.measureText(test).width > maxWidth && line){
+        lines.push(line);
+        line = words[i];
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function generateVerseImage(card){
+    var W = 1080, H = 1920;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+
+    var fontsReady = Promise.all([
+      document.fonts.load('italic 500 56px Spectral'),
+      document.fonts.load('600 30px "IBM Plex Mono"'),
+      document.fonts.ready
+    ]);
+
+    return fontsReady.then(function(){
+      // background gradient, matching the card's own palette
+      var grad = ctx.createLinearGradient(0, 0, W * 0.35, H);
+      grad.addColorStop(0, card.dataset.colorA);
+      grad.addColorStop(1, card.dataset.colorB);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // soft vignette for depth
+      var vignette = ctx.createRadialGradient(W/2, H*0.15, 80, W/2, H*0.6, H*0.85);
+      vignette.addColorStop(0, 'rgba(255,255,255,0.08)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.28)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, W, H);
+
+      // pick readable ink for this card's own palette (same rule as on-screen)
+      var avgHex = rgbToHex(
+        (hexToRgb(card.dataset.colorA).r + hexToRgb(card.dataset.colorB).r)/2,
+        (hexToRgb(card.dataset.colorA).g + hexToRgb(card.dataset.colorB).g)/2,
+        (hexToRgb(card.dataset.colorA).b + hexToRgb(card.dataset.colorB).b)/2
+      );
+      var isLight = relativeLuminance(avgHex) > 0.55;
+      var inkMain = isLight ? '#2a2118' : '#f4efe4';
+      var inkDim = isLight ? 'rgba(42,33,24,0.68)' : 'rgba(244,239,228,0.85)';
+      var inkFaint = isLight ? 'rgba(42,33,24,0.5)' : 'rgba(244,239,228,0.55)';
+      var inkRule = isLight ? 'rgba(42,33,24,0.35)' : 'rgba(244,239,228,0.35)';
+      var inkFooter = isLight ? 'rgba(42,33,24,0.4)' : 'rgba(244,239,228,0.4)';
+
+      ctx.textAlign = 'center';
+      var cx = W / 2;
+
+      // emoji
+      ctx.font = '148px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.fillText(card.dataset.emoji, cx, 430);
+
+      // eyebrow label
+      ctx.font = '600 26px "IBM Plex Mono", monospace';
+      ctx.fillStyle = inkFaint;
+      var eyebrow = 'S C R I P T U R E';
+      ctx.fillText(eyebrow, cx, 520);
+
+      // verse text, wrapped
+      ctx.font = 'italic 500 58px Spectral, Georgia, serif';
+      ctx.fillStyle = inkMain;
+      var maxWidth = W - 200;
+      var quoted = '\u201C' + card.dataset.text + '\u201D';
+      var lines = wrapCanvasText(ctx, quoted, maxWidth);
+      var lineHeight = 78;
+      var startY = H/2 - ((lines.length - 1) * lineHeight) / 2;
+      lines.forEach(function(l, i){
+        ctx.fillText(l, cx, startY + i * lineHeight);
+      });
+
+      // reference
+      var refY = startY + lines.length * lineHeight + 60;
+      ctx.strokeStyle = inkRule;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx-160, refY-10); ctx.lineTo(cx-40, refY-10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx+40, refY-10); ctx.lineTo(cx+160, refY-10); ctx.stroke();
+      ctx.font = '500 30px "IBM Plex Mono", monospace';
+      ctx.fillStyle = inkDim;
+      ctx.fillText(card.dataset.ref, cx, refY + 30);
+
+      // footer
+      ctx.font = '500 22px "IBM Plex Mono", monospace';
+      ctx.fillStyle = inkFooter;
+      ctx.fillText('KJV · SCRIPTURE — VERSE FEED', cx, H - 90);
+
+      return new Promise(function(resolve){
+        canvas.toBlob(function(blob){ resolve(blob); }, 'image/png');
+      });
+    });
+  }
+
+  var shareBtn = document.getElementById('shareBtn');
+  var shareToast = document.getElementById('shareToast');
+  shareBtn.addEventListener('click', function(){
+    var current = getCurrentCard();
+    if (!current) return;
+    shareBtn.disabled = true;
+
+    generateVerseImage(current).then(function(blob){
+      var filename = 'verse-' + current.dataset.book.replace(/\s+/g,'-') +
+        '-' + current.dataset.chapter + '-' + current.dataset.verse + '.png';
+      var file = new File([blob], filename, {type:'image/png'});
+
+      function flash(msg){
+        shareToast.textContent = msg;
+        shareToast.classList.add('show');
+        setTimeout(function(){ shareToast.classList.remove('show'); }, 1500);
+      }
+
+      if (navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({
+          files:[file],
+          title: current.dataset.ref,
+          text: '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (KJV)'
+        }).then(function(){
+          flash('Shared');
+        }).catch(function(err){
+          if (err && err.name !== 'AbortError') flash('Image downloaded');
+        }).finally(function(){
+          shareBtn.disabled = false;
+        });
+      } else {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+        flash('Image downloaded');
+        shareBtn.disabled = false;
+      }
+    }).catch(function(){
+      shareBtn.disabled = false;
+    });
+  });
+
+  // keyboard nav
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowDown' || e.key === ' '){
+      e.preventDefault();
+      document.getElementById('nextBtn').click();
+    } else if (e.key === 'ArrowUp'){
+      e.preventDefault();
+      var current = getCurrentCard();
+      var prev = current ? current.previousElementSibling : null;
+      if (prev) prev.scrollIntoView({behavior:'smooth', block:'start'});
+    } else if (e.key === 'Escape'){
+      closeContext();
+    }
+  });
+
+  // ----- context panel (full chapter) -----
+  var ctxBackdrop = document.getElementById('ctxBackdrop');
+  var ctxBody = document.getElementById('ctxBody');
+  var ctxTitle = document.getElementById('ctxTitle');
+  var ctxBtn = document.getElementById('ctxBtn');
+  var ctxClose = document.getElementById('ctxClose');
+
+  function openContext(){
+    var current = getCurrentCard();
+    if (!current) return;
+    var book = current.dataset.book;
+    var chapter = parseInt(current.dataset.chapter, 10);
+    var verse = parseInt(current.dataset.verse, 10);
+
+    // pull every verse in this book+chapter, in order
+    var chapterVerses = BIBLE_VERSES.filter(function(v){
+      return v[0] === book && v[1] === chapter;
+    });
+
+    ctxTitle.textContent = current.dataset.emoji + '  ' + book + ' ' + chapter;
+    ctxBody.innerHTML = '';
+    chapterVerses.forEach(function(v){
+      var row = document.createElement('div');
+      row.className = 'ctx-verse' + (v[2] === verse ? ' active' : '');
+      row.id = v[2] === verse ? 'ctx-active-verse' : '';
+      row.innerHTML = '<span class="ctx-num">' + v[2] + '</span>' +
+        '<span class="ctx-txt">' + formatText(v[3]) + '</span>';
+      ctxBody.appendChild(row);
+    });
+
+    ctxBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // scroll the highlighted verse into view within the panel
+    requestAnimationFrame(function(){
+      var active = document.getElementById('ctx-active-verse');
+      if (active) active.scrollIntoView({block:'center'});
+    });
+  }
+
+  function closeContext(){
+    ctxBackdrop.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  ctxBtn.addEventListener('click', openContext);
+  ctxClose.addEventListener('click', closeContext);
+  ctxBackdrop.addEventListener('click', function(e){
+    if (e.target === ctxBackdrop) closeContext();
+  });
+
+  // hide first-run cue after first scroll
+  feed.addEventListener('scroll', function once(){
+    var cue = document.getElementById('cue');
+    if (cue) cue.style.display = 'none';
+    feed.removeEventListener('scroll', once);
+  }, {once:true});
+})();
+</script>
+</body>
+</html>
