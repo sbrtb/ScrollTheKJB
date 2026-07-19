@@ -351,6 +351,51 @@
   }
   .ctx-verse.active .ctx-num{color:#e8a672;font-weight:500;}
   .ctx-verse.active .ctx-txt{color:var(--ink);}
+
+  .voice-settings-btn{
+    -webkit-tap-highlight-color:transparent;
+    position:absolute;
+    right:-4px;bottom:-4px;
+    width:20px;height:20px;
+    border-radius:50%;
+    border:1px solid rgba(244,239,228,0.25);
+    background:#1c1917;
+    color:var(--ink-dim);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .voice-settings-btn svg{width:11px;height:11px;}
+  .voice-panel{height:auto;max-height:64vh;}
+  .voice-option{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 4px;
+    border-bottom:1px solid rgba(244,239,228,0.06);
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .voice-option:last-child{border-bottom:none;}
+  .voice-option-name{
+    font-family:'Spectral',Georgia,serif;
+    font-size:15px;
+    color:var(--ink-dim);
+    line-height:1.4;
+  }
+  .voice-option-badge{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    color:var(--ink-faint);
+  }
+  .voice-option.selected .voice-option-name{color:var(--ink);font-weight:600;}
+  .voice-option-check{
+    flex:0 0 auto;
+    font-size:15px;
+    color:#e8a672;
+    opacity:0;
+  }
+  .voice-option.selected .voice-option-check{opacity:1;}
 </style>
 </head>
 <body>
@@ -369,6 +414,9 @@
   <div style="position:relative;">
     <button id="voiceBtn" title="Read aloud" aria-label="Toggle read-aloud narration">
       <svg id="voiceIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5.5a9 9 0 0 1 0 13"/></svg>
+    </button>
+    <button id="voiceSettingsBtn" class="voice-settings-btn" title="Choose voice" aria-label="Choose narration voice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009.09 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9A1.65 1.65 0 0010 3.09V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     </button>
     <div class="toast" id="voiceToast">Narration on</div>
   </div>
@@ -404,6 +452,19 @@
       </button>
     </div>
     <div class="ctx-body" id="ctxBody"></div>
+  </div>
+</div>
+
+<div class="ctx-backdrop" id="voiceBackdrop">
+  <div class="ctx-panel voice-panel" id="voicePanel" role="dialog" aria-modal="true" aria-labelledby="voicePanelTitle">
+    <div class="ctx-handle"></div>
+    <div class="ctx-header">
+      <span class="ctx-title" id="voicePanelTitle">Voice</span>
+      <button class="ctx-close" id="voicePanelClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="ctx-body" id="voiceList"></div>
   </div>
 </div>
 
@@ -494,6 +555,23 @@
     var v = on ? '1' : '0';
     try { localStorage.setItem(AUTOREAD_STORAGE_KEY, v); } catch(e){}
     try { writeCookie(AUTOREAD_STORAGE_KEY, v); } catch(e){}
+  }
+
+  var VOICE_CHOICE_KEY = 'verseFeedVoiceChoice';
+  function getStoredVoiceChoice(){
+    var raw = null;
+    try { raw = localStorage.getItem(VOICE_CHOICE_KEY); } catch(e){}
+    if (!raw) raw = readCookie(VOICE_CHOICE_KEY);
+    if (raw){
+      try { var parsed = JSON.parse(raw); return { en: parsed.en || null, fr: parsed.fr || null }; }
+      catch(e){}
+    }
+    return { en: null, fr: null };
+  }
+  function setStoredVoiceChoice(choice){
+    var raw = JSON.stringify(choice);
+    try { localStorage.setItem(VOICE_CHOICE_KEY, raw); } catch(e){}
+    try { writeCookie(VOICE_CHOICE_KEY, raw); } catch(e){}
   }
 
   var lang = getStoredLang() || 'en';
@@ -600,6 +678,7 @@
   var autoRead = SPEECH_SUPPORTED && getStoredAutoRead();
   var voicesCache = [];
   var speakTimer = null;
+  var selectedVoice = getStoredVoiceChoice(); // { en: voiceURI|null, fr: voiceURI|null }
 
   function loadVoices(){
     if (SPEECH_SUPPORTED) voicesCache = window.speechSynthesis.getVoices();
@@ -610,11 +689,28 @@
   }
   function pickVoice(langCode){
     if (!voicesCache.length) return null;
+    var prefix = langCode.split('-')[0];
+    var chosenURI = selectedVoice[prefix];
+    if (chosenURI){
+      var chosen = voicesCache.filter(function(v){ return v.voiceURI === chosenURI; });
+      if (chosen.length) return chosen[0];
+    }
     var exact = voicesCache.filter(function(v){ return v.lang === langCode; });
     if (exact.length) return exact[0];
-    var prefix = langCode.split('-')[0];
     var loose = voicesCache.filter(function(v){ return v.lang && v.lang.indexOf(prefix) === 0; });
     return loose.length ? loose[0] : null;
+  }
+  function previewVoice(voice, langCode){
+    if (!SPEECH_SUPPORTED) return;
+    window.speechSynthesis.cancel();
+    var sample = langCode.indexOf('fr') === 0
+      ? 'Ceci est un aperçu de cette voix.'
+      : 'This is a preview of this voice.';
+    var utter = new SpeechSynthesisUtterance(sample);
+    utter.lang = langCode;
+    utter.rate = 0.95;
+    if (voice) utter.voice = voice;
+    window.speechSynthesis.speak(utter);
   }
   function speakVerse(card){
     if (!SPEECH_SUPPORTED || !autoRead || !card) return;
@@ -1156,6 +1252,7 @@
     document.getElementById('nextBtn').title = t.next;
     langBtn.title = t.lang;
     voiceBtn.title = SPEECH_SUPPORTED ? (autoRead ? t.voiceOn : t.voiceOff) : t.voiceOff;
+    voiceSettingsBtn.title = lang === 'fr' ? 'Choisir une voix' : 'Choose voice';
     document.getElementById('cue').lastChild.textContent = t.swipe;
     htmlRoot.lang = lang;
     langLabel.textContent = lang === 'fr' ? 'EN' : 'FR';
@@ -1196,6 +1293,7 @@
 
     stopSpeaking();
     closeContext();
+    closeVoicePanel();
     Array.prototype.forEach.call(feed.children, function(card){
       retranslateCard(card, newLang);
     });
@@ -1251,6 +1349,86 @@
     } else {
       stopSpeaking();
     }
+  });
+
+  // ----- voice picker sheet -----
+  var voiceSettingsBtn = document.getElementById('voiceSettingsBtn');
+  var voiceBackdrop = document.getElementById('voiceBackdrop');
+  var voicePanelClose = document.getElementById('voicePanelClose');
+  var voicePanelTitle = document.getElementById('voicePanelTitle');
+  var voiceList = document.getElementById('voiceList');
+
+  function renderVoiceList(){
+    loadVoices();
+    var prefix = lang === 'fr' ? 'fr' : 'en';
+    var langCode = lang === 'fr' ? 'fr-FR' : 'en-US';
+    var matches = voicesCache.filter(function(v){
+      return v.lang && v.lang.toLowerCase().indexOf(prefix) === 0;
+    });
+    voicePanelTitle.textContent = lang === 'fr' ? 'Choisir une voix' : 'Choose a voice';
+    voiceList.innerHTML = '';
+    var currentSel = selectedVoice[prefix];
+
+    function makeRow(label, uri, badge){
+      var row = document.createElement('div');
+      row.className = 'voice-option' + (uri === currentSel ? ' selected' : '');
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'voice-option-name';
+      nameSpan.textContent = label;
+      if (badge){
+        var b = document.createElement('span');
+        b.className = 'voice-option-badge';
+        b.textContent = ' ' + badge;
+        nameSpan.appendChild(b);
+      }
+      var check = document.createElement('span');
+      check.className = 'voice-option-check';
+      check.textContent = '\u2713';
+      row.appendChild(nameSpan);
+      row.appendChild(check);
+      row.addEventListener('click', function(){
+        selectedVoice[prefix] = uri;
+        setStoredVoiceChoice(selectedVoice);
+        renderVoiceList();
+        previewVoice(pickVoice(langCode), langCode);
+      });
+      voiceList.appendChild(row);
+    }
+
+    makeRow(lang === 'fr' ? 'Automatique (choix du navigateur)' : 'Automatic (browser default)', null);
+
+    if (!matches.length){
+      var empty = document.createElement('div');
+      empty.style.cssText = 'padding:18px 4px;color:var(--ink-faint);font-family:"Spectral",Georgia,serif;font-size:14px;';
+      empty.textContent = lang === 'fr'
+        ? "Aucune autre voix française trouvée sur cet appareil."
+        : "No other voices found on this device.";
+      voiceList.appendChild(empty);
+    } else {
+      matches.forEach(function(v){
+        makeRow(v.name, v.voiceURI, v.localService ? '' : (lang === 'fr' ? '(réseau)' : '(network)'));
+      });
+    }
+  }
+
+  function openVoicePanel(){
+    stopSpeaking();
+    renderVoiceList();
+    voiceBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeVoicePanel(){
+    voiceBackdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    if (SPEECH_SUPPORTED) window.speechSynthesis.cancel();
+  }
+  voiceSettingsBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    openVoicePanel();
+  });
+  voicePanelClose.addEventListener('click', closeVoicePanel);
+  voiceBackdrop.addEventListener('click', function(e){
+    if (e.target === voiceBackdrop) closeVoicePanel();
   });
 
   updateVoiceIcon();
