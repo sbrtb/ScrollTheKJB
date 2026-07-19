@@ -145,7 +145,7 @@
     align-items:center;
     gap:18px;
   }
-  .rail button{
+  .rail button, .lang-corner button{
     -webkit-tap-highlight-color:transparent;
     width:46px;height:46px;
     border-radius:50%;
@@ -158,8 +158,32 @@
     transition:transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
   }
   .rail button svg{width:19px;height:19px;}
-  .rail button:active{transform:scale(0.88);}
+  .rail button:active, .lang-corner button:active{transform:scale(0.88);}
   .rail button:disabled{opacity:0.5;cursor:default;}
+  .lang-corner{
+    position:fixed;
+    left:14px;
+    bottom:max(28px, env(safe-area-inset-bottom));
+    z-index:10;
+  }
+  .lang-corner .toast{
+    position:absolute;
+    left:56px;
+    bottom:12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.05em;
+    color:var(--ink);
+    background:rgba(0,0,0,0.55);
+    padding:6px 10px;
+    border-radius:5px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 220ms ease, transform 220ms ease;
+    transform:translateX(-6px);
+  }
+  .lang-corner .toast.show{opacity:1;transform:translateX(0);}
   .rail .toast{
     position:absolute;
     right:56px;
@@ -334,13 +358,14 @@
 <div class="top-hint"><span id="counter">verse 1</span></div>
 <div id="feed"></div>
 
+<div class="lang-corner">
+  <button id="langBtn" title="Switch language" aria-label="Switch Bible language">
+    <span id="langLabel" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.03em;">FR</span>
+  </button>
+  <div class="toast" id="langToast">Français</div>
+</div>
+
 <div class="rail">
-  <div style="position:relative;">
-    <button id="langBtn" title="Switch language" aria-label="Switch Bible language">
-      <span id="langLabel" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.03em;">FR</span>
-    </button>
-    <div class="toast" id="langToast">Français</div>
-  </div>
   <div style="position:relative;">
     <button id="shareBtn" title="Share" aria-label="Share this verse as an image">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5 15.4 6.5M8.6 13.5l6.8 4"/></svg>
@@ -430,7 +455,27 @@
           swipe:'glisser', footer:'OSTERVALD · FIL DE VERSETS', share:'Partager', copy:'Copier',
           ctx:'Voir le contexte', next:'Verset suivant', lang:'Changer de langue', langToast:'Français', openQ:'\u00AB\u202F', closeQ:'\u202F\u00BB' }
   };
-  var lang = 'en';
+  var LANG_STORAGE_KEY = 'verseFeedLang';
+
+  function readCookie(name){
+    var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+  function writeCookie(name, value){
+    document.cookie = name + '=' + encodeURIComponent(value) + ';max-age=' + (60*60*24*365) + ';path=/;SameSite=Lax';
+  }
+  function getStoredLang(){
+    var v = null;
+    try { v = localStorage.getItem(LANG_STORAGE_KEY); } catch(e){}
+    if (v !== 'en' && v !== 'fr') v = readCookie(LANG_STORAGE_KEY);
+    return (v === 'en' || v === 'fr') ? v : null;
+  }
+  function setStoredLang(l){
+    try { localStorage.setItem(LANG_STORAGE_KEY, l); } catch(e){}
+    try { writeCookie(LANG_STORAGE_KEY, l); } catch(e){}
+  }
+
+  var lang = getStoredLang() || 'en';
   var VERSES = DATASETS[lang];
   var total = VERSES.length;
 
@@ -633,6 +678,7 @@
     entries.forEach(function(entry){
       if (entry.isIntersecting){
         counter.textContent = UI[entry.target.dataset.lang].verse + ' ' + entry.target.dataset.seq;
+        counter.dataset.touched = '1';
         var idx = Array.prototype.indexOf.call(feed.children, entry.target);
         // if within 2 of the end, load more
         if (idx >= feed.children.length - 2){
@@ -935,6 +981,7 @@
     document.getElementById('cue').lastChild.textContent = t.swipe;
     htmlRoot.lang = lang;
     langLabel.textContent = lang === 'fr' ? 'EN' : 'FR';
+    if (!counter.dataset.touched) counter.textContent = t.verse + ' 1';
   }
 
   langBtn.addEventListener('click', function(){
@@ -942,6 +989,7 @@
     VERSES = DATASETS[lang];
     total = VERSES.length;
     cardSeq = 0;
+    setStoredLang(lang);
 
     closeContext();
     feed.innerHTML = '';
