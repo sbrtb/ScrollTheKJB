@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="htmlRoot">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -336,6 +336,12 @@
 
 <div class="rail">
   <div style="position:relative;">
+    <button id="langBtn" title="Switch language" aria-label="Switch Bible language">
+      <span id="langLabel" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.03em;">FR</span>
+    </button>
+    <div class="toast" id="langToast">Français</div>
+  </div>
+  <div style="position:relative;">
     <button id="shareBtn" title="Share" aria-label="Share this verse as an image">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5 15.4 6.5M8.6 13.5l6.8 4"/></svg>
     </button>
@@ -376,6 +382,7 @@
 </div>
 
 <script src="data.js"></script>
+<script src="data-fr.js"></script>
 <script>
 (function(){
   // User-curated palette. Each card gets a diagonal gradient from this base
@@ -410,8 +417,22 @@
   var feed = document.getElementById('feed');
   var counter = document.getElementById('counter');
   var cardSeq = 0;
-  var total = BIBLE_VERSES.length;
   var lastColorIdx = -1;
+
+  // ----- language / dataset handling -----
+  var DATASETS = { en: BIBLE_VERSES, fr: BIBLE_VERSES_FR };
+  var VERSION_LABEL = { en: 'KJV', fr: 'Ostervald' };
+  var UI = {
+    en: { verse:'verse', chapter:'Chapter', copied:'Copied', shared:'Shared', downloaded:'Image downloaded',
+          swipe:'swipe', footer:'KJV · SCRIPTURE — VERSE FEED', share:'Share', copy:'Copy',
+          ctx:'View context', next:'Next verse', lang:'Switch language', langToast:'English', openQ:'\u201C', closeQ:'\u201D' },
+    fr: { verse:'verset', chapter:'Chapitre', copied:'Copié', shared:'Partagé', downloaded:'Image téléchargée',
+          swipe:'glisser', footer:'OSTERVALD · FIL DE VERSETS', share:'Partager', copy:'Copier',
+          ctx:'Voir le contexte', next:'Verset suivant', lang:'Changer de langue', langToast:'Français', openQ:'\u00AB\u202F', closeQ:'\u202F\u00BB' }
+  };
+  var lang = 'en';
+  var VERSES = DATASETS[lang];
+  var total = VERSES.length;
 
   function pickPalette(){
     var i;
@@ -423,7 +444,7 @@
   }
 
   function randomVerse(){
-    return BIBLE_VERSES[Math.floor(Math.random()*total)];
+    return VERSES[Math.floor(Math.random()*total)];
   }
 
   function formatText(text){
@@ -565,13 +586,13 @@
     var mark = document.createElement('div');
     mark.className = 'mark';
     cardSeq++;
-    mark.textContent = 'Scripture · ' + String(cardSeq).padStart(3,'0');
+    mark.textContent = (lang === 'fr' ? 'Écriture' : 'Scripture') + ' · ' + String(cardSeq).padStart(3,'0');
 
     var p = document.createElement('div');
     p.className = 'verse-text';
     var first = text.charAt(0);
     var rest = text.slice(1);
-    p.innerHTML = '<span class="drop">“' + first + '</span>' + rest + '”';
+    p.innerHTML = '<span class="drop">' + UI[lang].openQ + first + '</span>' + rest + UI[lang].closeQ;
 
     var ref = document.createElement('div');
     ref.className = 'ref';
@@ -593,6 +614,7 @@
     card.dataset.emoji = emoji;
     card.dataset.colorA = colors[0];
     card.dataset.colorB = colors[1];
+    card.dataset.lang = lang;
 
     return card;
   }
@@ -610,7 +632,7 @@
   var io = new IntersectionObserver(function(entries){
     entries.forEach(function(entry){
       if (entry.isIntersecting){
-        counter.textContent = 'verse ' + entry.target.dataset.seq;
+        counter.textContent = UI[entry.target.dataset.lang].verse + ' ' + entry.target.dataset.seq;
         var idx = Array.prototype.indexOf.call(feed.children, entry.target);
         // if within 2 of the end, load more
         if (idx >= feed.children.length - 2){
@@ -655,8 +677,10 @@
   copyBtn.addEventListener('click', function(){
     var current = getCurrentCard();
     if (!current) return;
-    var full = '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (KJV)';
+    var cLang = current.dataset.lang;
+    var full = '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (' + VERSION_LABEL[cLang] + ')';
     function flash(){
+      copyToast.textContent = UI[cLang].copied;
       copyToast.classList.add('show');
       setTimeout(function(){ copyToast.classList.remove('show'); }, 1200);
     }
@@ -732,17 +756,19 @@
       ctx.font = '148px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
       ctx.fillText(card.dataset.emoji, cx, 430);
 
+      var cLang = card.dataset.lang || 'en';
+
       // eyebrow label
       ctx.font = '600 26px "IBM Plex Mono", monospace';
       ctx.fillStyle = inkFaint;
-      var eyebrow = 'S C R I P T U R E';
+      var eyebrow = cLang === 'fr' ? 'É C R I T U R E' : 'S C R I P T U R E';
       ctx.fillText(eyebrow, cx, 520);
 
       // verse text, wrapped
       ctx.font = 'italic 500 58px Spectral, Georgia, serif';
       ctx.fillStyle = inkMain;
       var maxWidth = W - 200;
-      var quoted = '\u201C' + card.dataset.text + '\u201D';
+      var quoted = UI[cLang].openQ + card.dataset.text + UI[cLang].closeQ;
       var lines = wrapCanvasText(ctx, quoted, maxWidth);
       var lineHeight = 78;
       var startY = H/2 - ((lines.length - 1) * lineHeight) / 2;
@@ -763,7 +789,7 @@
       // footer
       ctx.font = '500 22px "IBM Plex Mono", monospace';
       ctx.fillStyle = inkFooter;
-      ctx.fillText('KJV · SCRIPTURE — VERSE FEED', cx, H - 90);
+      ctx.fillText(UI[cLang].footer, cx, H - 90);
 
       return new Promise(function(resolve){
         canvas.toBlob(function(blob){ resolve(blob); }, 'image/png');
@@ -778,6 +804,7 @@
     if (!current) return;
     shareBtn.disabled = true;
 
+    var cLang = current.dataset.lang;
     generateVerseImage(current).then(function(blob){
       var filename = 'verse-' + current.dataset.book.replace(/\s+/g,'-') +
         '-' + current.dataset.chapter + '-' + current.dataset.verse + '.png';
@@ -793,11 +820,11 @@
         navigator.share({
           files:[file],
           title: current.dataset.ref,
-          text: '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (KJV)'
+          text: '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (' + VERSION_LABEL[cLang] + ')'
         }).then(function(){
-          flash('Shared');
+          flash(UI[cLang].shared);
         }).catch(function(err){
-          if (err && err.name !== 'AbortError') flash('Image downloaded');
+          if (err && err.name !== 'AbortError') flash(UI[cLang].downloaded);
         }).finally(function(){
           shareBtn.disabled = false;
         });
@@ -810,7 +837,7 @@
         a.click();
         document.body.removeChild(a);
         setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-        flash('Image downloaded');
+        flash(UI[cLang].downloaded);
         shareBtn.disabled = false;
       }
     }).catch(function(){
@@ -846,9 +873,10 @@
     var book = current.dataset.book;
     var chapter = parseInt(current.dataset.chapter, 10);
     var verse = parseInt(current.dataset.verse, 10);
+    var cLang = current.dataset.lang;
 
-    // pull every verse in this book+chapter, in order
-    var chapterVerses = BIBLE_VERSES.filter(function(v){
+    // pull every verse in this book+chapter, in order, from the matching language dataset
+    var chapterVerses = DATASETS[cLang].filter(function(v){
       return v[0] === book && v[1] === chapter;
     });
 
@@ -890,6 +918,44 @@
     if (cue) cue.style.display = 'none';
     feed.removeEventListener('scroll', once);
   }, {once:true});
+
+  // ----- language toggle -----
+  var langBtn = document.getElementById('langBtn');
+  var langLabel = document.getElementById('langLabel');
+  var langToast = document.getElementById('langToast');
+  var htmlRoot = document.getElementById('htmlRoot');
+
+  function applyStaticStrings(){
+    var t = UI[lang];
+    document.getElementById('shareBtn').title = t.share;
+    document.getElementById('copyBtn').title = t.copy;
+    document.getElementById('ctxBtn').title = t.ctx;
+    document.getElementById('nextBtn').title = t.next;
+    langBtn.title = t.lang;
+    document.getElementById('cue').lastChild.textContent = t.swipe;
+    htmlRoot.lang = lang;
+    langLabel.textContent = lang === 'fr' ? 'EN' : 'FR';
+  }
+
+  langBtn.addEventListener('click', function(){
+    lang = lang === 'en' ? 'fr' : 'en';
+    VERSES = DATASETS[lang];
+    total = VERSES.length;
+    cardSeq = 0;
+
+    closeContext();
+    feed.innerHTML = '';
+    feed.scrollTop = 0;
+    for (var i=0;i<3;i++) appendCard();
+    counter.textContent = UI[lang].verse + ' 1';
+
+    applyStaticStrings();
+    langToast.textContent = UI[lang].langToast;
+    langToast.classList.add('show');
+    setTimeout(function(){ langToast.classList.remove('show'); }, 1200);
+  });
+
+  applyStaticStrings();
 })();
 </script>
 </body>
