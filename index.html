@@ -479,6 +479,70 @@
   var VERSES = DATASETS[lang];
   var total = VERSES.length;
 
+  // ----- cross-language verse lookup (so switching language shows the SAME verse translated) -----
+  function buildBookOrder(verses){
+    var order = [], seen = {};
+    for (var i=0;i<verses.length;i++){
+      var b = verses[i][0];
+      if (!seen[b]){ seen[b] = true; order.push(b); }
+    }
+    return order;
+  }
+  function buildVerseIndex(verses){
+    var idx = {};
+    for (var i=0;i<verses.length;i++){
+      var v = verses[i];
+      idx[v[0] + '|' + v[1] + '|' + v[2]] = v[3];
+    }
+    return idx;
+  }
+  function buildChapterIndex(verses){
+    var idx = {};
+    for (var i=0;i<verses.length;i++){
+      var v = verses[i];
+      var key = v[0] + '|' + v[1];
+      if (!idx[key]) idx[key] = [];
+      idx[key].push(v[2]);
+    }
+    return idx;
+  }
+  var BOOK_ORDER = { en: buildBookOrder(BIBLE_VERSES), fr: buildBookOrder(BIBLE_VERSES_FR) };
+  var BOOK_MAP = { en: {}, fr: {} }; // en: english->french, fr: french->english
+  for (var bi=0; bi<Math.min(BOOK_ORDER.en.length, BOOK_ORDER.fr.length); bi++){
+    BOOK_MAP.en[BOOK_ORDER.en[bi]] = BOOK_ORDER.fr[bi];
+    BOOK_MAP.fr[BOOK_ORDER.fr[bi]] = BOOK_ORDER.en[bi];
+  }
+  var VERSE_INDEX = { en: buildVerseIndex(BIBLE_VERSES), fr: buildVerseIndex(BIBLE_VERSES_FR) };
+  var CHAPTER_INDEX = { en: buildChapterIndex(BIBLE_VERSES), fr: buildChapterIndex(BIBLE_VERSES_FR) };
+
+  // Find the equivalent verse in the other language. Falls back to the nearest
+  // verse number in the same chapter if the exact verse isn't aligned between
+  // the two translations' versification.
+  function translateReference(book, chapter, verse, fromLang, toLang){
+    if (fromLang === toLang){
+      return { book: book, chapter: chapter, verse: verse, text: VERSE_INDEX[toLang][book+'|'+chapter+'|'+verse] };
+    }
+    var newBook = BOOK_MAP[fromLang][book];
+    if (!newBook) return null;
+    var key = newBook + '|' + chapter + '|' + verse;
+    var text = VERSE_INDEX[toLang][key];
+    var newVerse = verse;
+    if (text === undefined){
+      var chapterVerses = CHAPTER_INDEX[toLang][newBook + '|' + chapter];
+      if (chapterVerses && chapterVerses.length){
+        var best = chapterVerses[0], bestDiff = Math.abs(chapterVerses[0] - verse);
+        for (var i=1;i<chapterVerses.length;i++){
+          var d = Math.abs(chapterVerses[i] - verse);
+          if (d < bestDiff){ bestDiff = d; best = chapterVerses[i]; }
+        }
+        newVerse = best;
+        text = VERSE_INDEX[toLang][newBook + '|' + chapter + '|' + newVerse];
+      }
+    }
+    if (text === undefined) return null;
+    return { book: newBook, chapter: chapter, verse: newVerse, text: text };
+  }
+
   function pickPalette(){
     var i;
     do{ i = Math.floor(Math.random()*BRAND_COLORS.length); }while(i===lastColorIdx && BRAND_COLORS.length>1);
@@ -984,18 +1048,53 @@
     if (!counter.dataset.touched) counter.textContent = t.verse + ' 1';
   }
 
+  function retranslateCard(card, toLang){
+    var fromLang = card.dataset.lang;
+    if (fromLang === toLang) return true;
+    var result = translateReference(card.dataset.book, parseInt(card.dataset.chapter,10), parseInt(card.dataset.verse,10), fromLang, toLang);
+    if (!result) return false;
+
+    var text = formatText(result.text);
+    card.dataset.book = result.book;
+    card.dataset.chapter = result.chapter;
+    card.dataset.verse = result.verse;
+    card.dataset.text = text;
+    card.dataset.ref = result.book + ' ' + result.chapter + ':' + result.verse;
+    card.dataset.lang = toLang;
+
+    var markEl = card.querySelector('.mark');
+    if (markEl){
+      markEl.textContent = (toLang === 'fr' ? 'Écriture' : 'Scripture') + ' · ' + String(card.dataset.seq).padStart(3,'0');
+    }
+    var verseTextEl = card.querySelector('.verse-text');
+    if (verseTextEl){
+      var first = text.charAt(0);
+      var rest = text.slice(1);
+      verseTextEl.innerHTML = '<span class="drop">' + UI[toLang].openQ + first + '</span>' + rest + UI[toLang].closeQ;
+    }
+    var refTextEl = card.querySelector('.ref-text');
+    if (refTextEl) refTextEl.textContent = card.dataset.ref;
+    return true;
+  }
+
   langBtn.addEventListener('click', function(){
-    lang = lang === 'en' ? 'fr' : 'en';
-    VERSES = DATASETS[lang];
-    total = VERSES.length;
-    cardSeq = 0;
-    setStoredLang(lang);
+    var newLang = lang === 'en' ? 'fr' : 'en';
 
     closeContext();
-    feed.innerHTML = '';
-    feed.scrollTop = 0;
-    for (var i=0;i<3;i++) appendCard();
-    counter.textContent = UI[lang].verse + ' 1';
+    Array.prototype.forEach.call(feed.children, function(card){
+      retranslateCard(card, newLang);
+    });
+
+    lang = newLang;
+    VERSES = DATASETS[lang];
+    total = VERSES.length;
+    setStoredLang(lang);
+
+    var current = getCurrentCard();
+    if (current){
+      counter.textContent = UI[lang].verse + ' ' + current.dataset.seq;
+      counter.dataset.touched = '1';
+    }
 
     applyStaticStrings();
     langToast.textContent = UI[lang].langToast;
