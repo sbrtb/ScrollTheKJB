@@ -367,6 +367,12 @@
 
 <div class="rail">
   <div style="position:relative;">
+    <button id="voiceBtn" title="Read aloud" aria-label="Toggle read-aloud narration">
+      <svg id="voiceIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5.5a9 9 0 0 1 0 13"/></svg>
+    </button>
+    <div class="toast" id="voiceToast">Narration on</div>
+  </div>
+  <div style="position:relative;">
     <button id="shareBtn" title="Share" aria-label="Share this verse as an image">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5 15.4 6.5M8.6 13.5l6.8 4"/></svg>
     </button>
@@ -450,10 +456,12 @@
   var UI = {
     en: { verse:'verse', chapter:'Chapter', copied:'Copied', shared:'Shared', downloaded:'Image downloaded',
           swipe:'swipe', footer:'KJV · SCRIPTURE — VERSE FEED', share:'Share', copy:'Copy',
-          ctx:'View context', next:'Next verse', lang:'Switch language', langToast:'English', openQ:'\u201C', closeQ:'\u201D' },
+          ctx:'View context', next:'Next verse', lang:'Switch language', langToast:'English', openQ:'\u201C', closeQ:'\u201D',
+          voiceOn:'Read aloud: on', voiceOff:'Read aloud: off', voiceToastOn:'Narration on', voiceToastOff:'Narration off' },
     fr: { verse:'verset', chapter:'Chapitre', copied:'Copié', shared:'Partagé', downloaded:'Image téléchargée',
           swipe:'glisser', footer:'OSTERVALD · FIL DE VERSETS', share:'Partager', copy:'Copier',
-          ctx:'Voir le contexte', next:'Verset suivant', lang:'Changer de langue', langToast:'Français', openQ:'\u00AB\u202F', closeQ:'\u202F\u00BB' }
+          ctx:'Voir le contexte', next:'Verset suivant', lang:'Changer de langue', langToast:'Français', openQ:'\u00AB\u202F', closeQ:'\u202F\u00BB',
+          voiceOn:'Lecture audio\u00A0: activée', voiceOff:'Lecture audio\u00A0: désactivée', voiceToastOn:'Narration activée', voiceToastOff:'Narration désactivée' }
   };
   var LANG_STORAGE_KEY = 'verseFeedLang';
 
@@ -473,6 +481,19 @@
   function setStoredLang(l){
     try { localStorage.setItem(LANG_STORAGE_KEY, l); } catch(e){}
     try { writeCookie(LANG_STORAGE_KEY, l); } catch(e){}
+  }
+
+  var AUTOREAD_STORAGE_KEY = 'verseFeedAutoRead';
+  function getStoredAutoRead(){
+    var v = null;
+    try { v = localStorage.getItem(AUTOREAD_STORAGE_KEY); } catch(e){}
+    if (v === null || v === undefined) v = readCookie(AUTOREAD_STORAGE_KEY);
+    return v === '1';
+  }
+  function setStoredAutoRead(on){
+    var v = on ? '1' : '0';
+    try { localStorage.setItem(AUTOREAD_STORAGE_KEY, v); } catch(e){}
+    try { writeCookie(AUTOREAD_STORAGE_KEY, v); } catch(e){}
   }
 
   var lang = getStoredLang() || 'en';
@@ -572,6 +593,49 @@
       if (urlLang !== 'en' && urlLang !== 'fr') urlLang = null;
       return { book: book, chapter: chapter, verse: verse, lang: urlLang };
     } catch(e){ return null; }
+  }
+
+  // ----- read-aloud narration -----
+  var SPEECH_SUPPORTED = ('speechSynthesis' in window) && (typeof SpeechSynthesisUtterance !== 'undefined');
+  var autoRead = SPEECH_SUPPORTED && getStoredAutoRead();
+  var voicesCache = [];
+  var speakTimer = null;
+
+  function loadVoices(){
+    if (SPEECH_SUPPORTED) voicesCache = window.speechSynthesis.getVoices();
+  }
+  if (SPEECH_SUPPORTED){
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+  function pickVoice(langCode){
+    if (!voicesCache.length) return null;
+    var exact = voicesCache.filter(function(v){ return v.lang === langCode; });
+    if (exact.length) return exact[0];
+    var prefix = langCode.split('-')[0];
+    var loose = voicesCache.filter(function(v){ return v.lang && v.lang.indexOf(prefix) === 0; });
+    return loose.length ? loose[0] : null;
+  }
+  function speakVerse(card){
+    if (!SPEECH_SUPPORTED || !autoRead || !card) return;
+    window.speechSynthesis.cancel();
+    var langCode = card.dataset.lang === 'fr' ? 'fr-FR' : 'en-US';
+    var utter = new SpeechSynthesisUtterance(card.dataset.text);
+    utter.lang = langCode;
+    utter.rate = 0.95;
+    utter.pitch = 1;
+    var voice = pickVoice(langCode);
+    if (voice) utter.voice = voice;
+    window.speechSynthesis.speak(utter);
+  }
+  function scheduleSpeak(card){
+    if (!SPEECH_SUPPORTED || !autoRead) return;
+    clearTimeout(speakTimer);
+    speakTimer = setTimeout(function(){ speakVerse(card); }, 350);
+  }
+  function stopSpeaking(){
+    clearTimeout(speakTimer);
+    if (SPEECH_SUPPORTED) window.speechSynthesis.cancel();
   }
 
   function pickPalette(){
@@ -789,6 +853,7 @@
       if (entry.isIntersecting){
         counter.textContent = UI[entry.target.dataset.lang].verse + ' ' + entry.target.dataset.seq;
         counter.dataset.touched = '1';
+        scheduleSpeak(entry.target);
         var idx = Array.prototype.indexOf.call(feed.children, entry.target);
         // if within 2 of the end, load more
         if (idx >= feed.children.length - 2){
@@ -811,6 +876,7 @@
 
   // next button -> smooth scroll to next card
   document.getElementById('nextBtn').addEventListener('click', function(){
+    stopSpeaking();
     var current = getCurrentCard();
     var next = current ? current.nextElementSibling : feed.firstElementChild;
     if (!next){ next = appendCard(); }
@@ -1026,6 +1092,7 @@
   function openContext(){
     var current = getCurrentCard();
     if (!current) return;
+    stopSpeaking();
     var book = current.dataset.book;
     var chapter = parseInt(current.dataset.chapter, 10);
     var verse = parseInt(current.dataset.verse, 10);
@@ -1088,6 +1155,7 @@
     document.getElementById('ctxBtn').title = t.ctx;
     document.getElementById('nextBtn').title = t.next;
     langBtn.title = t.lang;
+    voiceBtn.title = SPEECH_SUPPORTED ? (autoRead ? t.voiceOn : t.voiceOff) : t.voiceOff;
     document.getElementById('cue').lastChild.textContent = t.swipe;
     htmlRoot.lang = lang;
     langLabel.textContent = lang === 'fr' ? 'EN' : 'FR';
@@ -1126,6 +1194,7 @@
   langBtn.addEventListener('click', function(){
     var newLang = lang === 'en' ? 'fr' : 'en';
 
+    stopSpeaking();
     closeContext();
     Array.prototype.forEach.call(feed.children, function(card){
       retranslateCard(card, newLang);
@@ -1140,6 +1209,7 @@
     if (current){
       counter.textContent = UI[lang].verse + ' ' + current.dataset.seq;
       counter.dataset.touched = '1';
+      if (autoRead) speakVerse(current);
     }
 
     applyStaticStrings();
@@ -1148,6 +1218,42 @@
     setTimeout(function(){ langToast.classList.remove('show'); }, 1200);
   });
 
+  // ----- narration toggle -----
+  var ICON_VOICE_ON = '<path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5.5a9 9 0 0 1 0 13"/>';
+  var ICON_VOICE_OFF = '<path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M17 9l5 5M22 9l-5 5"/>';
+  var voiceBtn = document.getElementById('voiceBtn');
+  var voiceIcon = document.getElementById('voiceIcon');
+  var voiceToast = document.getElementById('voiceToast');
+
+  function updateVoiceIcon(){
+    voiceIcon.innerHTML = autoRead ? ICON_VOICE_ON : ICON_VOICE_OFF;
+    voiceBtn.style.opacity = autoRead ? '1' : '0.55';
+  }
+
+  voiceBtn.addEventListener('click', function(){
+    if (!SPEECH_SUPPORTED){
+      voiceToast.textContent = lang === 'fr' ? 'Non pris en charge par ce navigateur' : 'Not supported in this browser';
+      voiceToast.classList.add('show');
+      setTimeout(function(){ voiceToast.classList.remove('show'); }, 1500);
+      return;
+    }
+    autoRead = !autoRead;
+    setStoredAutoRead(autoRead);
+    updateVoiceIcon();
+    voiceBtn.title = autoRead ? UI[lang].voiceOn : UI[lang].voiceOff;
+    voiceToast.textContent = autoRead ? UI[lang].voiceToastOn : UI[lang].voiceToastOff;
+    voiceToast.classList.add('show');
+    setTimeout(function(){ voiceToast.classList.remove('show'); }, 1200);
+
+    if (autoRead){
+      var current = getCurrentCard();
+      if (current) speakVerse(current);
+    } else {
+      stopSpeaking();
+    }
+  });
+
+  updateVoiceIcon();
   applyStaticStrings();
 })();
 </script>
