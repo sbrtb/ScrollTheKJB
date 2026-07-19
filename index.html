@@ -351,51 +351,6 @@
   }
   .ctx-verse.active .ctx-num{color:#e8a672;font-weight:500;}
   .ctx-verse.active .ctx-txt{color:var(--ink);}
-
-  .voice-settings-btn{
-    -webkit-tap-highlight-color:transparent;
-    position:absolute;
-    right:-4px;bottom:-4px;
-    width:20px;height:20px;
-    border-radius:50%;
-    border:1px solid rgba(244,239,228,0.25);
-    background:#1c1917;
-    color:var(--ink-dim);
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-  }
-  .voice-settings-btn svg{width:11px;height:11px;}
-  .voice-panel{height:auto;max-height:64vh;}
-  .voice-option{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding:14px 4px;
-    border-bottom:1px solid rgba(244,239,228,0.06);
-    cursor:pointer;
-    -webkit-tap-highlight-color:transparent;
-  }
-  .voice-option:last-child{border-bottom:none;}
-  .voice-option-name{
-    font-family:'Spectral',Georgia,serif;
-    font-size:15px;
-    color:var(--ink-dim);
-    line-height:1.4;
-  }
-  .voice-option-badge{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:10px;
-    color:var(--ink-faint);
-  }
-  .voice-option.selected .voice-option-name{color:var(--ink);font-weight:600;}
-  .voice-option-check{
-    flex:0 0 auto;
-    font-size:15px;
-    color:#e8a672;
-    opacity:0;
-  }
-  .voice-option.selected .voice-option-check{opacity:1;}
 </style>
 </head>
 <body>
@@ -411,15 +366,6 @@
 </div>
 
 <div class="rail">
-  <div style="position:relative;">
-    <button id="voiceBtn" title="Read aloud" aria-label="Toggle read-aloud narration">
-      <svg id="voiceIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5.5a9 9 0 0 1 0 13"/></svg>
-    </button>
-    <button id="voiceSettingsBtn" class="voice-settings-btn" title="Choose voice" aria-label="Choose narration voice">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009.09 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9A1.65 1.65 0 0010 3.09V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    </button>
-    <div class="toast" id="voiceToast">Narration on</div>
-  </div>
   <div style="position:relative;">
     <button id="shareBtn" title="Share" aria-label="Share this verse as an image">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5 15.4 6.5M8.6 13.5l6.8 4"/></svg>
@@ -452,19 +398,6 @@
       </button>
     </div>
     <div class="ctx-body" id="ctxBody"></div>
-  </div>
-</div>
-
-<div class="ctx-backdrop" id="voiceBackdrop">
-  <div class="ctx-panel voice-panel" id="voicePanel" role="dialog" aria-modal="true" aria-labelledby="voicePanelTitle">
-    <div class="ctx-handle"></div>
-    <div class="ctx-header">
-      <span class="ctx-title" id="voicePanelTitle">Voice</span>
-      <button class="ctx-close" id="voicePanelClose" aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div class="ctx-body" id="voiceList"></div>
   </div>
 </div>
 
@@ -517,12 +450,10 @@
   var UI = {
     en: { verse:'verse', chapter:'Chapter', copied:'Copied', shared:'Shared', downloaded:'Image downloaded',
           swipe:'swipe', footer:'KJV · SCRIPTURE — VERSE FEED', share:'Share', copy:'Copy',
-          ctx:'View context', next:'Next verse', lang:'Switch language', langToast:'English', openQ:'\u201C', closeQ:'\u201D',
-          voiceOn:'Read aloud: on', voiceOff:'Read aloud: off', voiceToastOn:'Narration on', voiceToastOff:'Narration off' },
+          ctx:'View context', next:'Next verse', lang:'Switch language', langToast:'English', openQ:'\u201C', closeQ:'\u201D' },
     fr: { verse:'verset', chapter:'Chapitre', copied:'Copié', shared:'Partagé', downloaded:'Image téléchargée',
           swipe:'glisser', footer:'OSTERVALD · FIL DE VERSETS', share:'Partager', copy:'Copier',
-          ctx:'Voir le contexte', next:'Verset suivant', lang:'Changer de langue', langToast:'Français', openQ:'\u00AB\u202F', closeQ:'\u202F\u00BB',
-          voiceOn:'Lecture audio\u00A0: activée', voiceOff:'Lecture audio\u00A0: désactivée', voiceToastOn:'Narration activée', voiceToastOff:'Narration désactivée' }
+          ctx:'Voir le contexte', next:'Verset suivant', lang:'Changer de langue', langToast:'Français', openQ:'\u00AB\u202F', closeQ:'\u202F\u00BB' }
   };
   var LANG_STORAGE_KEY = 'verseFeedLang';
 
@@ -542,36 +473,6 @@
   function setStoredLang(l){
     try { localStorage.setItem(LANG_STORAGE_KEY, l); } catch(e){}
     try { writeCookie(LANG_STORAGE_KEY, l); } catch(e){}
-  }
-
-  var AUTOREAD_STORAGE_KEY = 'verseFeedAutoRead';
-  function getStoredAutoRead(){
-    var v = null;
-    try { v = localStorage.getItem(AUTOREAD_STORAGE_KEY); } catch(e){}
-    if (v === null || v === undefined) v = readCookie(AUTOREAD_STORAGE_KEY);
-    return v === '1';
-  }
-  function setStoredAutoRead(on){
-    var v = on ? '1' : '0';
-    try { localStorage.setItem(AUTOREAD_STORAGE_KEY, v); } catch(e){}
-    try { writeCookie(AUTOREAD_STORAGE_KEY, v); } catch(e){}
-  }
-
-  var VOICE_CHOICE_KEY = 'verseFeedVoiceChoice';
-  function getStoredVoiceChoice(){
-    var raw = null;
-    try { raw = localStorage.getItem(VOICE_CHOICE_KEY); } catch(e){}
-    if (!raw) raw = readCookie(VOICE_CHOICE_KEY);
-    if (raw){
-      try { var parsed = JSON.parse(raw); return { en: parsed.en || null, fr: parsed.fr || null }; }
-      catch(e){}
-    }
-    return { en: null, fr: null };
-  }
-  function setStoredVoiceChoice(choice){
-    var raw = JSON.stringify(choice);
-    try { localStorage.setItem(VOICE_CHOICE_KEY, raw); } catch(e){}
-    try { writeCookie(VOICE_CHOICE_KEY, raw); } catch(e){}
   }
 
   var lang = getStoredLang() || 'en';
@@ -671,67 +572,6 @@
       if (urlLang !== 'en' && urlLang !== 'fr') urlLang = null;
       return { book: book, chapter: chapter, verse: verse, lang: urlLang };
     } catch(e){ return null; }
-  }
-
-  // ----- read-aloud narration -----
-  var SPEECH_SUPPORTED = ('speechSynthesis' in window) && (typeof SpeechSynthesisUtterance !== 'undefined');
-  var autoRead = SPEECH_SUPPORTED && getStoredAutoRead();
-  var voicesCache = [];
-  var speakTimer = null;
-  var selectedVoice = getStoredVoiceChoice(); // { en: voiceURI|null, fr: voiceURI|null }
-
-  function loadVoices(){
-    if (SPEECH_SUPPORTED) voicesCache = window.speechSynthesis.getVoices();
-  }
-  if (SPEECH_SUPPORTED){
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }
-  function pickVoice(langCode){
-    if (!voicesCache.length) return null;
-    var prefix = langCode.split('-')[0];
-    var chosenURI = selectedVoice[prefix];
-    if (chosenURI){
-      var chosen = voicesCache.filter(function(v){ return v.voiceURI === chosenURI; });
-      if (chosen.length) return chosen[0];
-    }
-    var exact = voicesCache.filter(function(v){ return v.lang === langCode; });
-    if (exact.length) return exact[0];
-    var loose = voicesCache.filter(function(v){ return v.lang && v.lang.indexOf(prefix) === 0; });
-    return loose.length ? loose[0] : null;
-  }
-  function previewVoice(voice, langCode){
-    if (!SPEECH_SUPPORTED) return;
-    window.speechSynthesis.cancel();
-    var sample = langCode.indexOf('fr') === 0
-      ? 'Ceci est un aperçu de cette voix.'
-      : 'This is a preview of this voice.';
-    var utter = new SpeechSynthesisUtterance(sample);
-    utter.lang = langCode;
-    utter.rate = 0.95;
-    if (voice) utter.voice = voice;
-    window.speechSynthesis.speak(utter);
-  }
-  function speakVerse(card){
-    if (!SPEECH_SUPPORTED || !autoRead || !card) return;
-    window.speechSynthesis.cancel();
-    var langCode = card.dataset.lang === 'fr' ? 'fr-FR' : 'en-US';
-    var utter = new SpeechSynthesisUtterance(card.dataset.text);
-    utter.lang = langCode;
-    utter.rate = 0.95;
-    utter.pitch = 1;
-    var voice = pickVoice(langCode);
-    if (voice) utter.voice = voice;
-    window.speechSynthesis.speak(utter);
-  }
-  function scheduleSpeak(card){
-    if (!SPEECH_SUPPORTED || !autoRead) return;
-    clearTimeout(speakTimer);
-    speakTimer = setTimeout(function(){ speakVerse(card); }, 350);
-  }
-  function stopSpeaking(){
-    clearTimeout(speakTimer);
-    if (SPEECH_SUPPORTED) window.speechSynthesis.cancel();
   }
 
   function pickPalette(){
@@ -949,7 +789,6 @@
       if (entry.isIntersecting){
         counter.textContent = UI[entry.target.dataset.lang].verse + ' ' + entry.target.dataset.seq;
         counter.dataset.touched = '1';
-        scheduleSpeak(entry.target);
         var idx = Array.prototype.indexOf.call(feed.children, entry.target);
         // if within 2 of the end, load more
         if (idx >= feed.children.length - 2){
@@ -972,7 +811,6 @@
 
   // next button -> smooth scroll to next card
   document.getElementById('nextBtn').addEventListener('click', function(){
-    stopSpeaking();
     var current = getCurrentCard();
     var next = current ? current.nextElementSibling : feed.firstElementChild;
     if (!next){ next = appendCard(); }
@@ -1188,7 +1026,6 @@
   function openContext(){
     var current = getCurrentCard();
     if (!current) return;
-    stopSpeaking();
     var book = current.dataset.book;
     var chapter = parseInt(current.dataset.chapter, 10);
     var verse = parseInt(current.dataset.verse, 10);
@@ -1251,8 +1088,6 @@
     document.getElementById('ctxBtn').title = t.ctx;
     document.getElementById('nextBtn').title = t.next;
     langBtn.title = t.lang;
-    voiceBtn.title = SPEECH_SUPPORTED ? (autoRead ? t.voiceOn : t.voiceOff) : t.voiceOff;
-    voiceSettingsBtn.title = lang === 'fr' ? 'Choisir une voix' : 'Choose voice';
     document.getElementById('cue').lastChild.textContent = t.swipe;
     htmlRoot.lang = lang;
     langLabel.textContent = lang === 'fr' ? 'EN' : 'FR';
@@ -1291,9 +1126,7 @@
   langBtn.addEventListener('click', function(){
     var newLang = lang === 'en' ? 'fr' : 'en';
 
-    stopSpeaking();
     closeContext();
-    closeVoicePanel();
     Array.prototype.forEach.call(feed.children, function(card){
       retranslateCard(card, newLang);
     });
@@ -1307,7 +1140,6 @@
     if (current){
       counter.textContent = UI[lang].verse + ' ' + current.dataset.seq;
       counter.dataset.touched = '1';
-      if (autoRead) speakVerse(current);
     }
 
     applyStaticStrings();
@@ -1316,122 +1148,6 @@
     setTimeout(function(){ langToast.classList.remove('show'); }, 1200);
   });
 
-  // ----- narration toggle -----
-  var ICON_VOICE_ON = '<path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5.5a9 9 0 0 1 0 13"/>';
-  var ICON_VOICE_OFF = '<path d="M4 9v6h4l5 5V4L8 9H4z"/><path d="M17 9l5 5M22 9l-5 5"/>';
-  var voiceBtn = document.getElementById('voiceBtn');
-  var voiceIcon = document.getElementById('voiceIcon');
-  var voiceToast = document.getElementById('voiceToast');
-
-  function updateVoiceIcon(){
-    voiceIcon.innerHTML = autoRead ? ICON_VOICE_ON : ICON_VOICE_OFF;
-    voiceBtn.style.opacity = autoRead ? '1' : '0.55';
-  }
-
-  voiceBtn.addEventListener('click', function(){
-    if (!SPEECH_SUPPORTED){
-      voiceToast.textContent = lang === 'fr' ? 'Non pris en charge par ce navigateur' : 'Not supported in this browser';
-      voiceToast.classList.add('show');
-      setTimeout(function(){ voiceToast.classList.remove('show'); }, 1500);
-      return;
-    }
-    autoRead = !autoRead;
-    setStoredAutoRead(autoRead);
-    updateVoiceIcon();
-    voiceBtn.title = autoRead ? UI[lang].voiceOn : UI[lang].voiceOff;
-    voiceToast.textContent = autoRead ? UI[lang].voiceToastOn : UI[lang].voiceToastOff;
-    voiceToast.classList.add('show');
-    setTimeout(function(){ voiceToast.classList.remove('show'); }, 1200);
-
-    if (autoRead){
-      var current = getCurrentCard();
-      if (current) speakVerse(current);
-    } else {
-      stopSpeaking();
-    }
-  });
-
-  // ----- voice picker sheet -----
-  var voiceSettingsBtn = document.getElementById('voiceSettingsBtn');
-  var voiceBackdrop = document.getElementById('voiceBackdrop');
-  var voicePanelClose = document.getElementById('voicePanelClose');
-  var voicePanelTitle = document.getElementById('voicePanelTitle');
-  var voiceList = document.getElementById('voiceList');
-
-  function renderVoiceList(){
-    loadVoices();
-    var prefix = lang === 'fr' ? 'fr' : 'en';
-    var langCode = lang === 'fr' ? 'fr-FR' : 'en-US';
-    var matches = voicesCache.filter(function(v){
-      return v.lang && v.lang.toLowerCase().indexOf(prefix) === 0;
-    });
-    voicePanelTitle.textContent = lang === 'fr' ? 'Choisir une voix' : 'Choose a voice';
-    voiceList.innerHTML = '';
-    var currentSel = selectedVoice[prefix];
-
-    function makeRow(label, uri, badge){
-      var row = document.createElement('div');
-      row.className = 'voice-option' + (uri === currentSel ? ' selected' : '');
-      var nameSpan = document.createElement('span');
-      nameSpan.className = 'voice-option-name';
-      nameSpan.textContent = label;
-      if (badge){
-        var b = document.createElement('span');
-        b.className = 'voice-option-badge';
-        b.textContent = ' ' + badge;
-        nameSpan.appendChild(b);
-      }
-      var check = document.createElement('span');
-      check.className = 'voice-option-check';
-      check.textContent = '\u2713';
-      row.appendChild(nameSpan);
-      row.appendChild(check);
-      row.addEventListener('click', function(){
-        selectedVoice[prefix] = uri;
-        setStoredVoiceChoice(selectedVoice);
-        renderVoiceList();
-        previewVoice(pickVoice(langCode), langCode);
-      });
-      voiceList.appendChild(row);
-    }
-
-    makeRow(lang === 'fr' ? 'Automatique (choix du navigateur)' : 'Automatic (browser default)', null);
-
-    if (!matches.length){
-      var empty = document.createElement('div');
-      empty.style.cssText = 'padding:18px 4px;color:var(--ink-faint);font-family:"Spectral",Georgia,serif;font-size:14px;';
-      empty.textContent = lang === 'fr'
-        ? "Aucune autre voix française trouvée sur cet appareil."
-        : "No other voices found on this device.";
-      voiceList.appendChild(empty);
-    } else {
-      matches.forEach(function(v){
-        makeRow(v.name, v.voiceURI, v.localService ? '' : (lang === 'fr' ? '(réseau)' : '(network)'));
-      });
-    }
-  }
-
-  function openVoicePanel(){
-    stopSpeaking();
-    renderVoiceList();
-    voiceBackdrop.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeVoicePanel(){
-    voiceBackdrop.classList.remove('open');
-    document.body.style.overflow = '';
-    if (SPEECH_SUPPORTED) window.speechSynthesis.cancel();
-  }
-  voiceSettingsBtn.addEventListener('click', function(e){
-    e.stopPropagation();
-    openVoicePanel();
-  });
-  voicePanelClose.addEventListener('click', closeVoicePanel);
-  voiceBackdrop.addEventListener('click', function(e){
-    if (e.target === voiceBackdrop) closeVoicePanel();
-  });
-
-  updateVoiceIcon();
   applyStaticStrings();
 })();
 </script>
