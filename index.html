@@ -543,6 +543,37 @@
     return { book: newBook, chapter: chapter, verse: newVerse, text: text };
   }
 
+  // ----- deep link: share a verse via URL, and load it back on open -----
+  var APP_URL = 'https://sbrtb.github.io/ScrollTheKJB/';
+
+  function buildShareUrl(card){
+    var params = new URLSearchParams();
+    params.set('lang', card.dataset.lang);
+    params.set('book', card.dataset.book);
+    params.set('chapter', card.dataset.chapter);
+    params.set('verse', card.dataset.verse);
+    return APP_URL + '?' + params.toString();
+  }
+
+  function findVerseEntry(forLang, book, chapter, verse){
+    var text = VERSE_INDEX[forLang][book + '|' + chapter + '|' + verse];
+    if (text === undefined) return null;
+    return [book, chapter, verse, text];
+  }
+
+  function getSharedRefFromURL(){
+    try{
+      var params = new URLSearchParams(window.location.search);
+      var book = params.get('book');
+      var chapter = parseInt(params.get('chapter'), 10);
+      var verse = parseInt(params.get('verse'), 10);
+      var urlLang = params.get('lang');
+      if (!book || !chapter || !verse) return null;
+      if (urlLang !== 'en' && urlLang !== 'fr') urlLang = null;
+      return { book: book, chapter: chapter, verse: verse, lang: urlLang };
+    } catch(e){ return null; }
+  }
+
   function pickPalette(){
     var i;
     do{ i = Math.floor(Math.random()*BRAND_COLORS.length); }while(i===lastColorIdx && BRAND_COLORS.length>1);
@@ -735,7 +766,22 @@
   }
 
   // initial stack
-  for (var i=0;i<3;i++) appendCard();
+  var sharedRef = getSharedRefFromURL();
+  var sharedEntry = null;
+  if (sharedRef){
+    if (sharedRef.lang) { lang = sharedRef.lang; VERSES = DATASETS[lang]; total = VERSES.length; }
+    sharedEntry = findVerseEntry(lang, sharedRef.book, sharedRef.chapter, sharedRef.verse);
+  }
+  if (sharedEntry){
+    setStoredLang(lang);
+    feed.appendChild(buildCard(sharedEntry));
+    for (var i=0;i<2;i++) appendCard();
+    if (window.history && window.history.replaceState){
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  } else {
+    for (var i=0;i<3;i++) appendCard();
+  }
 
   // infinite feed: when nearing bottom, append more
   var io = new IntersectionObserver(function(entries){
@@ -788,7 +834,7 @@
     var current = getCurrentCard();
     if (!current) return;
     var cLang = current.dataset.lang;
-    var full = '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (' + VERSION_LABEL[cLang] + ')';
+    var full = '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (' + VERSION_LABEL[cLang] + ')\n' + buildShareUrl(current);
     function flash(){
       copyToast.textContent = UI[cLang].copied;
       copyToast.classList.add('show');
@@ -930,7 +976,7 @@
         navigator.share({
           files:[file],
           title: current.dataset.ref,
-          text: '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (' + VERSION_LABEL[cLang] + ')'
+          text: '"' + current.dataset.text + '" — ' + current.dataset.ref + ' (' + VERSION_LABEL[cLang] + ')\n' + buildShareUrl(current)
         }).then(function(){
           flash(UI[cLang].shared);
         }).catch(function(err){
